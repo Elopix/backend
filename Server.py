@@ -65,12 +65,14 @@ def resetPassword():
     if (request.method == "POST"):
         data = json.loads(request.data)
         email = data['email']
+        if (UserApi.getEmail(email) == None):
+            return jsonify({"boolean": "false"})
         newPass = getNewPassword(email)
 
         # create message object instance
         msg = MIMEMultipart()
 
-        message = "You're password has been reset. Your new password is: " + newPass + ". Please change you're password after you've logged in."
+        message = "Your password has been reset. Your new password is: " + newPass + ". Please change your password after you've logged in."
 
         # setup the parameters of the message
         msg['From'] = "bslim@grombouts.nl"
@@ -95,6 +97,7 @@ def getNewPassword(email, size=6, chars=string.ascii_uppercase + string.digits):
     UserApi.saveNewPassword(temp, email)
     return temp
 
+
 @app.route('/api/changePassword', methods=['POST'])
 def changePassword():
     data = request.get_json()
@@ -103,6 +106,7 @@ def changePassword():
     oldPassword = data.get('oldPassword')
     newPassword = data.get('newPassword')
     return jsonify({"responseCode": UserApi.changePassword(id, oldPassword, newPassword)})
+
 
 ################################################################
 # points and stampcard
@@ -139,8 +143,7 @@ def resetStampCard():
 @app.route('/api/createEvent', methods=['POST'])
 def createEvent():
     data = request.get_json()
-    return jsonify({"responseCode": eventApi.createEvent(data.get("id"),
-                                                         data.get('name'),
+    return jsonify({"responseCode": eventApi.createEvent(data.get('name'),
                                                          data.get('begin'),
                                                          data.get('end'),
                                                          data.get('location'),
@@ -153,10 +156,19 @@ def subToEvent():
     data = request.get_json()
     return jsonify(eventApi.subToEvent(data.get("eventId"), data.get("personId")))
 
+  
 @app.route('/api/saveMedia', methods=['POST'])
 def saveMedia():
     data = request.get_json()
-    return eventApi.saveMedia(data.get("url"),data.get("eventName"))
+    return eventApi.saveMedia(data.get("url"), data.get("eventName"))
+
+@app.route('/api/searchEvent', methods=['POST'])
+def searchEvent():
+    data = request.get_json()
+    result = eventApi.searchEvent(data.get("searchString"))
+    if len(result) > 0:
+        return jsonify({"responseCode": 200, "events": result})
+    return jsonify({"responseCode": 400, "events": {} })
 
 
 ################################################################
@@ -168,7 +180,6 @@ def createNews(emtpy):
     return None
 
 
-
 ################################################################
 # mentor
 ################################################################
@@ -178,12 +189,11 @@ def addProfilePhoto():
     data = request.get_json()
     return UserApi.addProfilePhoto(data.get('url'), data.get('id'))
 
+
 @app.route('/api/getProfilePhoto', methods=['POST'])
 def getProfilePhoto():
     data = request.get_json()
     return UserApi.getProfilePhoto(data.get('id'))
-
-
 
 
 ################################################################
@@ -216,8 +226,21 @@ def findEvent():
 
 # Is called to register a new user
 @app.route('/register', methods=['POST'])
-def registerHandler():
-    return jsonify({"responseCode": RegisterForm.registerSubmit(request.get_json())})
+def registerNormalUser():
+    return jsonify({"responseCode": RegisterForm.registerSubmit(request.get_json(), 0)})
+
+
+# Is called to register a new admin
+@app.route('/register-admin', methods=['POST'])
+def registerAdmin():
+    return jsonify({"responseCode": RegisterForm.registerSubmit(request.get_json(), 1)})
+
+@app.route('/api/getAllEvents', methods=['POST'])
+def getEvents():
+    result = eventApi.getAllEvents()
+    if len(result) > 0:
+        return jsonify({"responseCode": 200, "events": result})
+    return jsonify({"responseCode": 400, "events": {} })
 
 
 if __name__ == "__main__":
